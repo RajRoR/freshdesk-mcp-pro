@@ -1,227 +1,250 @@
 # Freshdesk MCP Server (Pro Fork)
 
-Fork of [effytech/freshdesk_mcp](https://github.com/effytech/freshdesk_mcp) with extra tools for ticket archaeology:
+Fork of [effytech/freshdesk_mcp](https://github.com/effytech/freshdesk_mcp). Adds tools for ticket archaeology and multi-account credentials.
 
-- `get_ticket_full` — fetch ticket + ALL conversations (paginated, no truncation), requester/agent expansion, status label decoding
-- `download_ticket_attachments` — pull every ticket + conversation attachment to disk
+## What's new in this fork
+
+- `get_ticket_full` — fetch ticket + ALL conversations (paginated, no truncation), with requester/agent expansion and status label decoding
+- `download_ticket_attachments` — pull every ticket-level + per-conversation attachment to disk
 - `extract_inline_images` — resolve `cid:` refs and download `<img>` URLs from description + every conversation body
-- Multi-account creds via `~/.mcp/freshdesk/accounts.json` (no env vars required)
+- `decode_ticket_status` — turn a status integer into its label (custom statuses included)
+- Multi-account credentials via `~/.mcp/freshdesk/accounts.json` (env vars still work)
 
-Original feature set (tickets, contacts, agents, groups, solutions, canned responses, ticket fields, summaries) remains intact.
+Original feature set (tickets, contacts, agents, groups, companies, solutions, canned responses, ticket fields, contact fields, summaries) remains intact.
 
-## Features
+> **Heads up — large payloads.** `get_ticket_full` on busy tickets routinely exceeds 256 KB and 25 k tokens. MCP hosts (Claude Code, Claude Desktop) will spill the result to a file. Slice it with `jq` rather than reading the whole thing back into context.
 
-- **Freshdesk Integration**: Seamless interaction with Freshdesk API endpoints
-- **AI Model Support**: Enables AI models to perform support operations through Freshdesk
-- **Automated Ticket Management**: Handle ticket creation, updates, and responses
+## Install
 
-## Components
-
-### Tools
-
-The server offers several tools for Freshdesk operations:
-
-- `create_ticket`: Create new support tickets
-  - **Inputs**:
-    - `subject` (string, required): Ticket subject
-    - `description` (string, required): Ticket description
-    - `source` (number, required): Ticket source code
-    - `priority` (number, required): Ticket priority level
-    - `status` (number, required): Ticket status code
-    - `email` (string, optional): Email of the requester
-    - `requester_id` (number, optional): ID of the requester
-    - `custom_fields` (object, optional): Custom fields to set on the ticket
-    - `additional_fields` (object, optional): Additional top-level fields
-
-- `update_ticket`: Update existing tickets
-  - **Inputs**:
-    - `ticket_id` (number, required): ID of the ticket to update
-    - `ticket_fields` (object, required): Fields to update
-
-- `delete_ticket`: Delete a ticket
-  - **Inputs**:
-    - `ticket_id` (number, required): ID of the ticket to delete
-
-- `search_tickets`: Search for tickets based on criteria
-  - **Inputs**:
-    - `query` (string, required): Search query string
-
-- `get_ticket_fields`: Get all ticket fields
-  - **Inputs**:
-    - None
-
-- `get_tickets`: Get all tickets
-  - **Inputs**:
-    - `page` (number, optional): Page number to fetch
-    - `per_page` (number, optional): Number of tickets per page
-
-- `get_ticket`: Get a single ticket
-  - **Inputs**:
-    - `ticket_id` (number, required): ID of the ticket to get
-
-- `get_ticket_conversation`: Get conversation for a ticket
-  - **Inputs**:
-    - `ticket_id` (number, required): ID of the ticket
-
-- `create_ticket_reply`: Reply to a ticket
-  - **Inputs**:
-    - `ticket_id` (number, required): ID of the ticket
-    - `body` (string, required): Content of the reply
-
-- `create_ticket_note`: Add a note to a ticket
-  - **Inputs**:
-    - `ticket_id` (number, required): ID of the ticket
-    - `body` (string, required): Content of the note
-
-- `update_ticket_conversation`: Update a conversation
-  - **Inputs**:
-    - `conversation_id` (number, required): ID of the conversation
-    - `body` (string, required): Updated content
-
-- `view_ticket_summary`: Get the summary of a ticket
-  - **Inputs**:
-    - `ticket_id` (number, required): ID of the ticket
-
-- `update_ticket_summary`: Update the summary of a ticket
-  - **Inputs**:
-    - `ticket_id` (number, required): ID of the ticket
-    - `body` (string, required): New summary content
-
-- `delete_ticket_summary`: Delete the summary of a ticket
-  - **Inputs**:
-    - `ticket_id` (number, required): ID of the ticket
-
-- `get_agents`: Get all agents
-  - **Inputs**:
-    - `page` (number, optional): Page number
-    - `per_page` (number, optional): Number of agents per page
-
-- `view_agent`: Get a single agent
-  - **Inputs**:
-    - `agent_id` (number, required): ID of the agent
-
-- `create_agent`: Create a new agent
-  - **Inputs**:
-    - `agent_fields` (object, required): Agent details
-
-- `update_agent`: Update an agent
-  - **Inputs**:
-    - `agent_id` (number, required): ID of the agent
-    - `agent_fields` (object, required): Fields to update
-
-- `search_agents`: Search for agents
-  - **Inputs**:
-    - `query` (string, required): Search query
-
-- `list_contacts`: Get all contacts
-  - **Inputs**:
-    - `page` (number, optional): Page number
-    - `per_page` (number, optional): Contacts per page
-
-- `get_contact`: Get a single contact
-  - **Inputs**:
-    - `contact_id` (number, required): ID of the contact
-
-- `search_contacts`: Search for contacts
-  - **Inputs**:
-    - `query` (string, required): Search query
-
-- `update_contact`: Update a contact
-  - **Inputs**:
-    - `contact_id` (number, required): ID of the contact
-    - `contact_fields` (object, required): Fields to update
-
-- `list_companies`: Get all companies
-  - **Inputs**:
-    - `page` (number, optional): Page number
-    - `per_page` (number, optional): Companies per page
-
-- `view_company`: Get a single company
-  - **Inputs**:
-    - `company_id` (number, required): ID of the company
-
-- `search_companies`: Search for companies
-  - **Inputs**:
-    - `query` (string, required): Search query
-
-- `find_company_by_name`: Find a company by name
-  - **Inputs**:
-    - `name` (string, required): Company name
-
-- `list_company_fields`: Get all company fields
-  - **Inputs**:
-    - None
-
-## Getting Started
-
-### Installing via Smithery
-
-To install freshdesk_mcp for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@effytech/freshdesk_mcp):
-
-```bash
-npx -y @smithery/cli install @effytech/freshdesk_mcp --client claude
-```
+> Smithery and PyPI publishing for the `-pro` fork are not set up yet. Install directly from GitHub.
 
 ### Prerequisites
+- Python ≥ 3.10
+- `uv` / `uvx` (`pip install uv` or `brew install uv`)
+- Freshdesk API key + domain
 
-- A Freshdesk account (sign up at [freshdesk.com](https://freshdesk.com))
-- Freshdesk API key
-- `uvx` installed (`pip install uv` or `brew install uv`)
+### Run from GitHub with `uvx`
 
-### Configuration
+```bash
+uvx --from git+https://github.com/RajRoR/freshdesk-mcp-pro freshdesk-mcp-pro
+```
 
-1. Generate your Freshdesk API key from the Freshdesk admin panel
-2. Set up your domain and authentication details
+### Editable install for development
 
-### Usage with Claude Desktop
+```bash
+git clone https://github.com/RajRoR/freshdesk-mcp-pro.git
+cd freshdesk-mcp-pro
+uv pip install -e .
+freshdesk-mcp-pro
+```
 
-1. Install Claude Desktop if you haven't already
-2. Add the following configuration to your `claude_desktop_config.json`:
+## Credentials
+
+Two ways. The server picks **env vars first**, then falls back to the accounts file.
+
+### Option 1 — env vars
+
+```
+FRESHDESK_API_KEY=<key>
+FRESHDESK_DOMAIN=yourcompany.freshdesk.com
+```
+
+`FRESHDESK_DOMAIN` may be the bare subdomain (`yourcompany`) or the full host (`yourcompany.freshdesk.com`).
+
+### Option 2 — multi-account file
+
+Create `~/.mcp/freshdesk/accounts.json`:
 
 ```json
-"mcpServers": {
-  "freshdesk-mcp": {
-    "command": "uvx",
-    "args": [
-        "freshdesk-mcp"
-    ],
-    "env": {
-      "FRESHDESK_API_KEY": "<YOUR_FRESHDESK_API_KEY>",
-      "FRESHDESK_DOMAIN": "<YOUR_FRESHDESK_DOMAIN>"
+{
+  "defaultDomain": "yourcompany",
+  "accounts": [
+    {
+      "domain": "yourcompany",
+      "apiKey": "FD_API_KEY_HERE"
+    },
+    {
+      "domain": "another.freshdesk.com",
+      "apiKey": "ANOTHER_KEY"
+    }
+  ]
+}
+```
+
+Selection rules:
+- If `defaultDomain` is set, the matching account is used.
+- Otherwise the first account in the list is used.
+- Bare subdomains are auto-suffixed with `.freshdesk.com`.
+
+## Usage with Claude Desktop / Claude Code
+
+Add to `claude_desktop_config.json` (or `~/.claude.json` for Claude Code):
+
+```json
+{
+  "mcpServers": {
+    "freshdesk-pro": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/RajRoR/freshdesk-mcp-pro",
+        "freshdesk-mcp-pro"
+      ],
+      "env": {
+        "FRESHDESK_API_KEY": "<YOUR_KEY>",
+        "FRESHDESK_DOMAIN": "<yourcompany.freshdesk.com>"
+      }
     }
   }
 }
 ```
 
-**Important Notes**:
-- Replace `YOUR_FRESHDESK_API_KEY` with your actual Freshdesk API key
-- Replace `YOUR_FRESHDESK_DOMAIN` with your Freshdesk domain (e.g., `yourcompany.freshdesk.com`)
+Or omit `env` and rely on `~/.mcp/freshdesk/accounts.json`.
 
-## Example Operations
+## Tools
 
-Once configured, you can ask Claude to perform operations like:
+### Pro additions (new in this fork)
 
-- "Create a new ticket with subject 'Payment Issue for customer A101' and description as 'Reaching out for a payment issue in the last month for customer A101', where customer email is a101@acme.com and set priority to high"
+- **`get_ticket_full`** — full ticket + every conversation, no truncation
+  - `ticket_id` (int, required)
+  - `include_requester` (bool, default `true`)
+  - `include_agent` (bool, default `true`)
+  - `decode_status` (bool, default `true`) — adds `status_label`
+  - Returns: ticket fields, `conversations[]`, `requester`, `agent`, `status_label`, `attachments_index`
+
+- **`download_ticket_attachments`** — saves ticket-level + per-conversation attachments under `<dest_dir>/<ticket_id>/`
+  - `ticket_id` (int, required)
+  - `dest_dir` (string, optional; defaults to `/tmp/fd`)
+  - `size_limit_mb` (int, default `50`) — per-file cap; larger files are skipped with an error entry
+
+- **`extract_inline_images`** — resolves `cid:` references against attachments and downloads remote `<img src>` URLs from description and every conversation body
+  - `ticket_id` (int, required)
+  - `dest_dir` (string, optional)
+  - `size_limit_mb` (int, default `25`)
+
+- **`decode_ticket_status`** — int status → label (handles custom statuses)
+  - `status_id` (int, required)
+
+### Tickets
+- `get_tickets` — `page`, `per_page`
+- `get_ticket` — `ticket_id`
+- `create_ticket` — `subject`, `description`, `source`, `priority`, `status`, optional `email`, `requester_id`, `custom_fields`, `additional_fields`
+- `update_ticket` — `ticket_id`, `ticket_fields`
+- `delete_ticket` — `ticket_id`
+- `search_tickets` — `query`
+- `get_ticket_fields`
+- `get_ticket_conversation` — `ticket_id`
+- `create_ticket_reply` — `ticket_id`, `body`
+- `create_ticket_note` — `ticket_id`, `body`
+- `update_ticket_conversation` — `conversation_id`, `body`
+- `view_ticket_summary` — `ticket_id`
+- `update_ticket_summary` — `ticket_id`, `body`
+- `delete_ticket_summary` — `ticket_id`
+
+### Ticket fields
+- `create_ticket_field` — `ticket_field_fields`
+- `view_ticket_field` — `ticket_field_id`
+- `update_ticket_field` — `ticket_field_id`, `ticket_field_fields`
+- `get_field_properties` — `field_name`
+
+### Agents
+- `get_agents` — `page`, `per_page`
+- `view_agent` — `agent_id`
+- `create_agent` — `agent_fields`
+- `update_agent` — `agent_id`, `agent_fields`
+- `search_agents` — `query`
+
+### Contacts
+- `list_contacts` — `page`, `per_page`
+- `get_contact` — `contact_id`
+- `search_contacts` — `query`
+- `update_contact` — `contact_id`, `contact_fields`
+
+### Contact fields
+- `list_contact_fields`
+- `view_contact_field` — `contact_field_id`
+- `create_contact_field` — `contact_field_fields`
+- `update_contact_field` — `contact_field_id`, `contact_field_fields`
+
+### Companies
+- `list_companies` — `page`, `per_page`
+- `view_company` — `company_id`
+- `search_companies` — `query`
+- `find_company_by_name` — `name`
+- `list_company_fields`
+
+### Groups
+- `list_groups` — `page`, `per_page`
+- `view_group` — `group_id`
+- `create_group` — `group_fields`
+- `update_group` — `group_id`, `group_fields`
+
+### Canned responses
+- `list_canned_response_folders`
+- `list_canned_responses` — `folder_id`
+- `view_canned_response` — `canned_response_id`
+- `create_canned_response` — `canned_response_fields`
+- `update_canned_response` — `canned_response_id`, `canned_response_fields`
+- `create_canned_response_folder` — `name`
+- `update_canned_response_folder` — `folder_id`, `name`
+
+### Solutions
+- `list_solution_categories`
+- `view_solution_category` — `category_id`
+- `create_solution_category` — `category_fields`
+- `update_solution_category` — `category_id`, `category_fields`
+- `list_solution_folders` — `category_id`
+- `create_solution_category_folder` — `category_id`, `folder_fields`
+- `view_solution_category_folder` — `folder_id`
+- `update_solution_category_folder` — `folder_id`, `folder_fields`
+- `list_solution_articles` — `folder_id`
+- `view_solution_article` — `article_id`
+- `create_solution_article` — `folder_id`, `article_fields`
+- `update_solution_article` — `article_id`, `article_fields`
+
+## Example operations
+
+- "Fetch ticket 63562 with all conversations and attachments, then summarize the RCA"
+- "List high-priority tickets created in the last 30 days"
 - "Update the status of ticket #12345 to 'Resolved'"
-- "List all high-priority tickets assigned to the agent John Doe"
-- "List previous tickets of customer A101 in last 30 days"
+- "Find all tickets from contact a101@acme.com"
 
+## Tips for large tickets
 
-## Testing
+`get_ticket_full` returns everything — every conversation body, every attachment metadata block. On busy tickets that's hundreds of KB.
 
-For testing purposes, you can start the server manually:
+Workflow that survives the host's 256 KB / 25 k token Read cap:
 
 ```bash
-uvx freshdesk-mcp --env FRESHDESK_API_KEY=<your_api_key> --env FRESHDESK_DOMAIN=<your_domain>
+# Result is auto-persisted by the host. Slice with jq.
+jq -r '.conversations[] | {id, private, incoming, created_at, body_text: (.body_text[:400])}' /path/to/persisted.json
 ```
+
+Then re-read only the conversation IDs you actually need.
 
 ## Troubleshooting
 
-- Verify your Freshdesk API key and domain are correct
-- Ensure proper network connectivity to Freshdesk servers
-- Check API rate limits and quotas
-- Verify the `uvx` command is available in your PATH
+- **`401 Unauthorized`** — wrong API key, or the key belongs to a different domain than `FRESHDESK_DOMAIN`.
+- **`404` on `get_ticket`** — ticket archived or in a different account.
+- **Empty attachments list** — Freshdesk API does not return attachment URLs for some ticket sources (e.g., portal forms with inline images only). Use `extract_inline_images` to recover those.
+- **Rate limits** — Freshdesk caps API at 50–700 calls/minute depending on plan. Pagination loops in `get_ticket_full` respect rate limits but tight loops across many tickets may 429.
+- **`uvx` not found** — `pip install uv` or `brew install uv`, then ensure `~/.local/bin` (or equivalent) is on `PATH`.
+
+## Development
+
+```bash
+git clone https://github.com/RajRoR/freshdesk-mcp-pro.git
+cd freshdesk-mcp-pro
+uv sync
+uv run freshdesk-mcp-pro
+```
+
+Tests live under `tests/`.
 
 ## License
 
-This MCP server is licensed under the MIT License. See the LICENSE file in the project repository for full details.
+MIT — see [LICENSE](LICENSE).
+
+## Credits
+
+Upstream: [effytech/freshdesk_mcp](https://github.com/effytech/freshdesk_mcp) by Gopi Krishnan and Maanaesh Swamy. Pro fork additions by Raj Ayyangar.
