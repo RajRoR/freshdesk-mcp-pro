@@ -1,9 +1,13 @@
-# Freshdesk MCP Server
-[![smithery badge](https://smithery.ai/badge/@effytech/freshdesk_mcp)](https://smithery.ai/server/@effytech/freshdesk_mcp)
+# Freshdesk MCP Server (Pro Fork)
 
-[![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/effytech/freshdesk_mcp)](https://archestra.ai/mcp-catalog/effytech__freshdesk_mcp)
+Fork of [effytech/freshdesk_mcp](https://github.com/effytech/freshdesk_mcp) with extra tools for ticket archaeology:
 
-An MCP server implementation that integrates with Freshdesk, enabling AI models to interact with Freshdesk modules and perform various support operations.
+- `get_ticket_full` — fetch ticket + ALL conversations (paginated, no truncation), requester/agent expansion, status label decoding
+- `download_ticket_attachments` — pull every ticket + conversation attachment to disk
+- `extract_inline_images` — resolve `cid:` refs and download `<img>` URLs from description + every conversation body
+- Multi-account creds via `~/.mcp/freshdesk/accounts.json` (no env vars required)
+
+Original feature set (tickets, contacts, agents, groups, solutions, canned responses, ticket fields, summaries) remains intact.
 
 ## Features
 
